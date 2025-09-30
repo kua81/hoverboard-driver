@@ -280,16 +280,16 @@ namespace hoverboard_driver
     first_read_pass_ = true;
 
     //  Init PID controller
-    pids[0].init(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
-                 hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
-                 hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
-                 hardware_publisher->pid_config.antiwindup, max_velocity, -max_velocity);
-    pids[0].setOutputLimits(-max_velocity, max_velocity);
-    pids[1].init(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
-                 hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
-                 hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
-                 hardware_publisher->pid_config.antiwindup, max_velocity, -max_velocity);
-    pids[1].setOutputLimits(-max_velocity, max_velocity);
+    // pids[0].init(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
+    //              hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
+    //              hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
+    //              hardware_publisher->pid_config.antiwindup, max_velocity, -max_velocity);
+    // pids[0].setOutputLimits(-max_velocity, max_velocity);
+    // pids[1].init(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
+    //              hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
+    //              hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
+    //              hardware_publisher->pid_config.antiwindup, max_velocity, -max_velocity);
+    // pids[1].setOutputLimits(-max_velocity, max_velocity);
 
     if ((port_fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY)) < 0)
     {
@@ -308,8 +308,7 @@ namespace hoverboard_driver
     tcflush(port_fd, TCIFLUSH);
     tcsetattr(port_fd, TCSANOW, &options);
 
-    RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "Successfully activated!");
-
+    RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "Successfully activated @ %s!", port.c_str());
     return hardware_interface::CallbackReturn::SUCCESS;
   }
 
@@ -327,6 +326,9 @@ namespace hoverboard_driver
   hardware_interface::return_type hoverboard_driver::read(
       const rclcpp::Time &time, const rclcpp::Duration &period)
   {
+    //DEBUG
+    //RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "Try read...");
+
     // to be able to compare times, we need to set last_read time to a correct time source
     // set the actual time as last_read, when it hasn't been set before (first attempt to read from harware)
     if (first_read_pass_ == true)
@@ -433,24 +435,27 @@ namespace hoverboard_driver
       RCLCPP_ERROR(rclcpp::get_logger("hoverboard_driver"), "Attempt to write on closed serial");
       return hardware_interface::return_type::ERROR;
     }
+    //DEBUG
+    //RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "publish_cmd");
+
     // Inform interested parties about the commands we've got
     hardware_publisher->publish_cmd(left_wheel, hw_commands_[left_wheel]);
     hardware_publisher->publish_cmd(right_wheel, hw_commands_[right_wheel]);
 
     // Set PID Parameters
-    pids[0].setParameters(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
-                          hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
-                          hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
-                          hardware_publisher->pid_config.antiwindup);
-    pids[1].setParameters(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
-                          hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
-                          hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
-                          hardware_publisher->pid_config.antiwindup);
+    // pids[0].setParameters(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
+    //                       hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
+    //                       hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
+    //                       hardware_publisher->pid_config.antiwindup);
+    // pids[1].setParameters(hardware_publisher->pid_config.f, hardware_publisher->pid_config.p,
+    //                       hardware_publisher->pid_config.i, hardware_publisher->pid_config.d,
+    //                       hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
+    //                       hardware_publisher->pid_config.antiwindup);
 
     // calculate PID values
-    double pid_outputs[2];
-    pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
-    pid_outputs[1] = pids[1](hw_velocities_[left_wheel], hw_commands_[right_wheel], period);
+    // double pid_outputs[2];
+    // pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
+    // pid_outputs[1] = pids[1](hw_velocities_[left_wheel], hw_commands_[right_wheel], period);
 
     // Convert PID outputs in RAD/S to RPM
     //double set_speed[2] = {
@@ -472,11 +477,13 @@ namespace hoverboard_driver
     command.speed = (int16_t)speed;
     command.checksum = (uint16_t)(command.start ^ command.steer ^ command.speed);
 
+
     int rc = ::write(port_fd, (const void *)&command, sizeof(command));
     if (rc < 0)
     {
       RCLCPP_ERROR(rclcpp::get_logger("hoverboard_driver"), "Error writing to hoverboard serial port");
     }
+
     return hardware_interface::return_type::OK;
   }
 

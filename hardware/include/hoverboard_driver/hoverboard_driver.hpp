@@ -180,7 +180,7 @@ namespace hoverboard_driver
     char *p;
     SerialFeedback msg, prev_msg;
 
-    PID pids[2];
+    //PID pids[2];
   };
 
 } // namespace hoverboard_driver
